@@ -14,6 +14,9 @@ return {
     -- Creates a beautiful debugger UI
     'rcarriga/nvim-dap-ui',
 
+    -- Manages various debugger plugins
+    'Pocco81/DAPInstall.nvim',
+
     -- Required dependency for nvim-dap-ui
     'nvim-neotest/nvim-nio',
 
@@ -23,10 +26,12 @@ return {
 
     -- Add your own debuggers here
     'leoluz/nvim-dap-go',
+    'mfussenegger/nvim-dap-python',
   },
   config = function()
     local dap = require 'dap'
     local dapui = require 'dapui'
+    local dapuiw = require 'dap.ui.widgets'
 
     require('mason-nvim-dap').setup {
       -- Makes a best effort to setup the various debuggers with
@@ -47,13 +52,27 @@ return {
 
     -- Basic debugging keymaps, feel free to change to your liking!
     vim.keymap.set('n', '<F5>', dap.continue, { desc = 'Debug: Start/Continue' })
-    vim.keymap.set('n', '<F1>', dap.step_into, { desc = 'Debug: Step Into' })
-    vim.keymap.set('n', '<F2>', dap.step_over, { desc = 'Debug: Step Over' })
-    vim.keymap.set('n', '<F3>', dap.step_out, { desc = 'Debug: Step Out' })
-    vim.keymap.set('n', '<leader>b', dap.toggle_breakpoint, { desc = 'Debug: Toggle Breakpoint' })
+    --vim.keymap.set('n', '<F1>', dap.step_into, { desc = 'Debug: Step Into' })
+    --vim.keymap.set('n', '<F2>', dap.step_over, { desc = 'Debug: Step Over' })
+    --vim.keymap.set('n', '<F3>', dap.step_out, { desc = 'Debug: Step Out' }) ]]
+    vim.keymap.set('n', '<leader>tb', dap.toggle_breakpoint, { desc = 'Debug: Toggle Breakpoint' })
     vim.keymap.set('n', '<leader>B', function()
       dap.set_breakpoint(vim.fn.input 'Breakpoint condition: ')
     end, { desc = 'Debug: Set Breakpoint' })
+    vim.keymap.set('n', '<leader>dr', dap.run_to_cursor, { desc = 'Debug: Run to Cursor' })
+    vim.keymap.set('n', '<leader>du', dapui.toggle, { desc = 'Debug UI: Toggle UI' })
+    vim.keymap.set('n', '<leader>db', dap.step_back, { desc = 'Debug: Step back' })
+    vim.keymap.set('n', '<leader>dc', dap.continue, { desc = 'Debug: Continue' })
+    vim.keymap.set('n', '<leader>de', dapui.eval, { desc = 'Debug UI: Evaluate' })
+    vim.keymap.set('n', '<leader>dg', dap.session, { desc = 'Debug: Get Session' })
+    vim.keymap.set('n', '<leader>dh', dapuiw.hover, { desc = 'Debug: Hover Variables' })
+    -- vim.keymap.set('n', '<leader>ds', dapuiw.scopes, { desc = 'Debug: Scopes' })
+    vim.keymap.set('n', '<leader>di', dap.step_into, { desc = 'Debug: Step into' })
+    vim.keymap.set('n', '<leader>dv', dap.step_over, { desc = 'Debug: Step Over' })
+    vim.keymap.set('n', '<leader>do', dap.step_out, { desc = 'Debug: Step Out' })
+    vim.keymap.set('n', '<leader>dp', dap.pause, { desc = 'Debug: Pause' })
+    vim.keymap.set('n', '<leader>tr', dap.repl.toggle, { desc = 'Debug: Toggle REPL' })
+    vim.keymap.set('n', '<leader>dt', dap.terminate, { desc = 'Debug: Terminate' })
 
     -- Dap UI setup
     -- For more information, see |:help nvim-dap-ui|
@@ -84,7 +103,67 @@ return {
     dap.listeners.before.event_terminated['dapui_config'] = dapui.close
     dap.listeners.before.event_exited['dapui_config'] = dapui.close
 
-    -- Install golang specific config
+    -- Python specific config
+    dap.adapters.python = {
+      type = 'executable',
+      command = 'python',
+      args = { '-m', 'debugpy.adapter' },
+    }
+    dap.configurations.python = {
+      {
+        justMyCode = false,
+        type = 'python',
+        request = 'launch',
+        name = 'Launch file',
+        program = '${file}',
+        args = get_args,
+        pythonPath = function()
+          local venv_path = os.getenv 'VIRTUAL_ENV'
+          if venv_path then
+            return venv_path .. '/bin/python'
+          end
+          return '/Users/anskumar/anaconda3/bin/python'
+        end,
+      },
+      {
+        type = 'python',
+        request = 'launch',
+        name = 'Debug Tests',
+        module = 'pytest',
+        args = { 'tests' },
+      },
+    }
+
+    -- Golang specific config
     require('dap-go').setup()
+
+    dap.adapters.codelldb = {
+      type = 'server',
+      port = '${port}',
+      executable = {
+        command = 'codelldb',
+        args = { '--port', '${port}' },
+
+        -- On windows you may have to uncomment this:
+        -- detached = false,
+      },
+    }
+
+    -- Rust specific config
+    dap.configurations.rust = {
+      {
+        name = 'Launch Rust',
+        type = 'codelldb',
+        request = 'launch',
+        program = function()
+          return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
+        end,
+        cwd = '${workspaceFolder}',
+        terminal = 'integrated',
+        sourceLanguages = { 'rust' },
+      },
+    }
+
+    --require('dap-python').setup '/Users/anskumar/anaconda3/bin/python'
   end,
 }
