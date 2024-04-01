@@ -166,6 +166,12 @@ vim.api.nvim_set_keymap('i', '<ESC>w', '<C-o>W', { noremap = true, silent = true
 vim.api.nvim_set_keymap('i', '<ESC>b', '<C-o>B', { noremap = true, silent = true, desc = 'Jump backwards to the start of a  word in insert mode' })
 vim.api.nvim_set_keymap('i', '<ESC>e', '<C-o>E', { noremap = true, silent = true, desc = 'Jump forwards to end of a word in insert mode' })
 
+-- Check if rprettify has been added to path
+local rprettify_exists = vim.api.nvim_call_function('executable', { 'rprettify' })
+if rprettify_exists == 0 then
+  vim.api.nvim_err_writeln 'Please add rprettify located in ~/.config/nvim/custom_formatters to your PATH'
+end
+
 -- Set highlight on search, but clear on pressing <Esc> in normal mode
 vim.opt.hlsearch = true
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
@@ -312,6 +318,7 @@ require('lazy').setup({
     dependencies = {
       'mfussenegger/nvim-dap',
       'nvim-lua/plenary.nvim',
+      'jonarrien/telescope-cmdline.nvim',
       { -- If encountering errors, see telescope-fzf-native README for installation instructions
         'nvim-telescope/telescope-fzf-native.nvim',
 
@@ -330,6 +337,9 @@ require('lazy').setup({
 
       -- Useful for getting pretty icons, but requires a Nerd Font.
       { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+    },
+    keys = {
+      { ':', '<cmd>Telescope cmdline<cr>', desc = 'Cmdline' },
     },
     config = function()
       -- Telescope is a fuzzy finder that comes with a lot of different things that
@@ -367,6 +377,19 @@ require('lazy').setup({
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
           },
+          ['cmdline'] = {
+            picker = {
+              layout_config = {
+                width = 120,
+                height = 25,
+              },
+            },
+            mappings = {
+              complete = '<Tab>',
+              run_selection = '<C-CR>',
+              run_input = '<CR>',
+            },
+          },
         },
       }
 
@@ -374,6 +397,7 @@ require('lazy').setup({
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
       pcall(require('telescope').load_extension, 'dap')
+      pcall(require('telescope').load_extension, 'cmdline')
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
@@ -565,6 +589,18 @@ require('lazy').setup({
         'black',
         'isort',
         'ruff',
+        'codelldb',
+        'debugpy',
+        'delve',
+        'mypy',
+        'pyright',
+        'r-languageserver',
+        'ruff-lsp',
+        'rust-analyzer',
+        'rustfmt',
+        'sqlfmt',
+        'sqlls',
+        'stylua',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -610,20 +646,6 @@ require('lazy').setup({
             }
           end,
 
-          --[[ ['r_language_server'] = function()
-            require('lspconfig').r_language_server.setup {
-              cmd = {
-                'R --slave -e languageserver::run()',
-              },
-              filetypes = {
-                'r',
-                'R',
-                'rmd',
-              },
-              capabilities = capabilities,
-            }
-          end, ]]
-
           ['rust_analyzer'] = function()
             require('lspconfig').rust_analyzer.setup {
               capabilities = capabilities,
@@ -635,8 +657,8 @@ require('lazy').setup({
             }
           end,
 
-          ['lua_lsp'] = function()
-            require('lspconfig').lua_lsp.setup {
+          ['lua_ls'] = function()
+            require('lspconfig').lua_ls.setup {
               capabilities = capabilities,
               settings = {
                 Lua = {
@@ -647,6 +669,20 @@ require('lazy').setup({
                   -- diagnostics = { disable = { 'missing-fields' } },
                 },
               },
+            }
+          end,
+
+          ['r_language_server'] = function()
+            require('lspconfig').r_language_server.setup {
+              --[[ cmd = {
+                'R --slave -e languageserver::run()',
+              }, ]]
+              filetypes = {
+                'r',
+                'R',
+                'rmd',
+              },
+              capabilities = capabilities,
             }
           end,
         },
@@ -691,7 +727,7 @@ require('lazy').setup({
       local cmp = require 'cmp'
       local luasnip = require 'luasnip'
       luasnip.config.setup {}
-      require('cmp_r').setup {}
+      -- require('cmp_r').setup {}
       require('luasnip.loaders.from_vscode').lazy_load()
 
       local lspkind = require 'lspkind'
@@ -711,7 +747,7 @@ require('lazy').setup({
         formatting = {
           fields = { 'abbr', 'kind', 'menu' },
           format = lspkind.cmp_format {
-            mode = 'symbol', -- show only symbol annotations
+            -- mode = 'symbol', -- show only symbol annotations
             maxwidth = 50, -- prevent the popup from showing more than provided characters
             show_labelDetails = true, -- show labelDetails in menu. Disabled by default
             ellipsis_char = '...', -- the truncated part when popup menu exceed maxwidth
@@ -775,16 +811,14 @@ require('lazy').setup({
           -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
           --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
         },
-        sources = cmp.config.sources({
+        sources = cmp.config.sources {
           { name = 'nvim_lsp' },
           { name = 'luasnip' },
-          { name = 'path', option = { trailing_slash = true } },
           { name = 'cmp_r' },
           { name = 'vim_dadbod_completion' },
-        }, {
-
           { name = 'buffer' },
-        }),
+          { name = 'path', option = { trailing_slash = true } },
+        },
       }
     end,
   },
@@ -817,7 +851,6 @@ require('lazy').setup({
 
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
-    'machakann/vim-sandwich',
     config = function()
       -- Better Around/Inside textobjects
       --
@@ -834,19 +867,13 @@ require('lazy').setup({
       -- - sr)'  - [S]urround [R]eplace [)] [']
       require('mini.surround').setup()
 
-      -- - sr"' - [S]wap [D]ouble [Q]uotes [I]nside [W]ord
-      -- - sr'q - [S]urround [S]pecial [T]ag
-      -- - srt" - [S]witch [B]ack [T]o [D]ouble [Q]uotes
-      -- - sr]{ - [S]urround [W]ith [B]reathing [R]oom
-      -- - sasb - [S]urround [E]ntire [L]ine [(]
-      require('vim-sandwich').setup()
-
       -- Simple and easy statusline.
       --  You could remove this setup call if you don't like it,
       --  and try some other statusline plugin
       local statusline = require 'mini.statusline'
       -- set use_icons to true if you have a Nerd Font
-      statusline.setup { use_icons = vim.g.have_nerd_font }
+      --[[ statusline.setup { use_icons = vim.g.have_nerd_font } ]]
+      statusline.setup { use_icons = true }
 
       -- You can configure sections in the statusline by overriding their
       -- default behavior. For example, here we set the section for
@@ -891,6 +918,16 @@ require('lazy').setup({
     end,
   },
 
+  -- Lists all diagnostic issues
+  {
+    'folke/trouble.nvim',
+    dependencies = {
+      'kyazdani42/nvim-web-devicons',
+    },
+    config = function()
+      require('trouble').setup {}
+    end,
+  },
   -- The following two comments only work if you have downloaded the kickstart repo, not just copy pasted the
   -- init.lua. If you want these files, they are in the repository, so you can just download them and
   -- place them in the correct locations.

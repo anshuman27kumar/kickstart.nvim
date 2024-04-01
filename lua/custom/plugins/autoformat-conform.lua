@@ -7,7 +7,7 @@ return {
   keys = {
     {
       -- Customize or remove this keymap to your liking
-      '<leader>f',
+      '<leader>fm',
       function()
         require('conform').format { async = true, lsp_fallback = true }
       end,
@@ -33,6 +33,10 @@ return {
           return { 'isort', 'black' }
         end
       end,
+      r = { 'rprettify' },
+      R = { 'rprettify' },
+      rmd = { 'rprettify' },
+      Rmd = { 'rprettify' },
     },
     -- If this is set, Conform will run the formatter on save.
     -- It will pass the table to conform.format().
@@ -43,7 +47,7 @@ return {
       -- languages here or re-enable it for the disabled ones.
       local disable_filetypes = { c = true, cpp = true, lua = false, python = false, r = false }
       return {
-        timeout_ms = 500,
+        timeout_ms = 2500,
         lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
       }
     end,
@@ -52,6 +56,17 @@ return {
     log_level = vim.log.levels.DEBUG,
     -- Conform will notify you when a formatter errors
     notify_on_error = true,
+
+    -- Custom formatters and any changes to built-in formatters
+    formatters = {
+      rprettify = {
+        inherit = false,
+        stdin = false,
+        command = 'rprettify',
+        args = { '$FILENAME' },
+      },
+    },
+
     init = function()
       -- If you want the formatexpr, here is the place to set it
       vim.o.formatexpr = "v:lua.require'conform'.formatexpr()"
